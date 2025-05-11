@@ -3,9 +3,11 @@ import { Clock } from '@/components/-Clock';
 import { Notes } from '@/components/-Notes';
 import { CashFlow } from '@/components/-CashFlow';
 import { ProgressTracker } from '@/components/-ProgressTracker';
+import { EventCalendar } from '@/components/-Events';
 import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { DayProgressBar } from '@/components/-DayProgressBar';
 
 export default function Page() {
 	return (
@@ -20,6 +22,13 @@ export default function Page() {
 							className="mr-2 data-[orientation=vertical]:h-4"
 						/>
 						<Clock />
+						<Separator
+							orientation="vertical"
+							className="m-2 data-[orientation=vertical]:h-4"
+						/>
+						<div className="flex-1 min-w-[320px]">
+							<DayProgressBar className="mt-3" />
+						</div>
 					</div>
 				</header>
 				<Separator />
@@ -33,9 +42,7 @@ export default function Page() {
 					</ResizablePanel>
 					<ResizableHandle />
 					<ResizablePanel className="h-full">
-						<div className="flex h-full w-full items-center justify-center">
-							<h1 className="text-2xl font-bold">enaknya diisi apa?</h1>
-						</div>
+						<EventCalendar />
 					</ResizablePanel>
 					<ResizableHandle />
 					<ResizablePanel className="h-full">

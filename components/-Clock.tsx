@@ -14,18 +14,16 @@ export function Clock() {
 	}, []);
 
 	// Format day
-	const day = time.toLocaleDateString('en-US', { weekday: 'long' });
+	const day = time.toLocaleDateString(undefined, { weekday: 'long' });
 
 	// Format date
-	const date = time.toLocaleDateString('en-US', {
+	const date = time.toLocaleDateString(undefined, {
 		year: 'numeric',
 		month: 'long',
 		day: 'numeric',
 	});
 
-	// Format hours (with 12 hour format)
-	const hours = time.getHours() % 12 || 12;
-	const ampm = time.getHours() >= 12 ? 'PM' : 'AM';
+	const hours = time.getHours();
 
 	// Format minutes and seconds with leading zeros
 	const minutes = time.getMinutes().toString().padStart(2, '0');
@@ -38,7 +36,7 @@ export function Clock() {
 
 	return (
 		<div className="font-mono">
-			{`${day} ${date} ${hours}:${minutes}:${seconds}.${milliseconds} ${ampm}`}
+			<div>{`${day} ${date} ${hours}:${minutes}:${seconds}.${milliseconds}`}</div>
 		</div>
 	);
 }

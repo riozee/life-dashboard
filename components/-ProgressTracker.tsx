@@ -14,6 +14,7 @@ type Task = {
 	title: string;
 	progress: number;
 	description: string;
+	startDate: Date;
 };
 
 interface TaskItemProps {
@@ -48,6 +49,15 @@ const TaskItem: React.FC<TaskItemProps> = ({
 		if (progress < 50) return 'text-orange-500';
 		if (progress < 75) return 'text-yellow-500';
 		return 'text-green-500';
+	};
+
+	const getDaysSinceStart = (startDate: Date) => {
+		const now = new Date();
+		const diffTime = Math.abs(now.getTime() - new Date(startDate).getTime());
+		const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+		return diffDays === 0
+			? 'Started today'
+			: `Started ${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
 	};
 
 	return (
@@ -125,6 +135,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
 								</div>
 							)}
 						</div>
+
+						<div className="mt-2 text-[0.5em] text-muted-foreground">
+							{getDaysSinceStart(task.startDate)}
+						</div>
 					</div>
 				</div>
 			)}
@@ -139,24 +153,28 @@ export function ProgressTracker() {
 			title: 'Complete project proposal',
 			progress: 75,
 			description: 'First draft completed, need to review and finalize.',
+			startDate: new Date(),
 		},
 		{
 			id: '2',
 			title: 'Learn TypeScript',
 			progress: 45,
 			description: 'Completed basic syntax, working on advanced types.',
+			startDate: new Date(),
 		},
 		{
 			id: '3',
 			title: 'Gym fitness goal',
 			progress: 30,
 			description: 'Currently at 65kg, target is 70kg.',
+			startDate: new Date(),
 		},
 		{
 			id: '4',
 			title: 'Reading "Atomic Habits"',
 			progress: 60,
 			description: 'Currently on chapter 7 of 12.',
+			startDate: new Date(),
 		},
 	]);
 
@@ -198,6 +216,7 @@ export function ProgressTracker() {
 			title: newTaskTitle,
 			progress: 0,
 			description: '',
+			startDate: new Date(),
 		};
 
 		setTasks([...tasks, newTask]);

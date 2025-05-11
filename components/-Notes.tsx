@@ -45,7 +45,7 @@ function NoteItem({
 	};
 
 	return (
-		<div className="group relative transition-colors hover:bg-muted/50">
+		<div className="group relative transition-colors hover:bg-muted/50 border mb-1">
 			{/* Top section - Note content */}
 			<div className="p-2 relative">
 				<p className={`pr-7 text-sm ${isRead ? 'text-muted-foreground' : 'font-medium'}`}>
@@ -66,7 +66,7 @@ function NoteItem({
 			<div className="h-0 overflow-hidden group-hover:h-auto group-hover:py-1 transition-all px-1">
 				<div className="flex items-center justify-between">
 					<div className="text-[10px] text-muted-foreground">
-						{createdAt.toLocaleDateString()}
+						{createdAt.toLocaleString()}
 					</div>
 
 					<div className="flex items-center gap-0.5">
@@ -193,7 +193,8 @@ export function Notes() {
 	// Calculate dashboard metrics
 	const calculateTotalNotes = () => notesData.length;
 	const calculateUnreadNotes = () => notesData.filter(note => !note.isRead).length;
-	const calculateHighPriorityNotes = () => notesData.filter(note => note.priority >= 4).length;
+	const calculateHighPriorityNotes = () =>
+		notesData.filter(note => note.priority >= 4 && !note.isRead).length;
 
 	// Sort notes: unread notes first (sorted by priority), then read notes (sorted by creation date)
 	const sortedNotesData = [...notesData].sort((a, b) => {
@@ -248,24 +249,18 @@ export function Notes() {
 				<ScrollArea className="h-full">
 					<div className="p-1">
 						{sortedNotesData.map((note, sortedIndex) => (
-							<React.Fragment key={sortedIndex}>
-								<NoteItem
-									note={note.content}
-									createdAt={note.createdAt}
-									isRead={note.isRead}
-									priority={note.priority}
-									onDelete={() => deleteNote(findOriginalIndex(sortedIndex))}
-									onToggleRead={() =>
-										toggleNoteRead(findOriginalIndex(sortedIndex))
-									}
-									onSetPriority={priority =>
-										setNotePriority(findOriginalIndex(sortedIndex), priority)
-									}
-								/>
-								{sortedIndex < sortedNotesData.length - 1 && (
-									<Separator className="my-0.5" />
-								)}
-							</React.Fragment>
+							<NoteItem
+								key={sortedIndex}
+								note={note.content}
+								createdAt={note.createdAt}
+								isRead={note.isRead}
+								priority={note.priority}
+								onDelete={() => deleteNote(findOriginalIndex(sortedIndex))}
+								onToggleRead={() => toggleNoteRead(findOriginalIndex(sortedIndex))}
+								onSetPriority={priority =>
+									setNotePriority(findOriginalIndex(sortedIndex), priority)
+								}
+							/>
 						))}
 					</div>
 				</ScrollArea>
