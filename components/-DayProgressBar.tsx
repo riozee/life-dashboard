@@ -97,7 +97,7 @@ export function DayProgressBar({ className }: { className?: string }) {
 		return (
 			<div
 				className={cn(
-					'w-full text-sm text-muted-foreground font-light text-center',
+					'w-full text-sm text-muted-foreground font-light text-center bottom-1.5',
 					className
 				)}
 			>
@@ -110,7 +110,7 @@ export function DayProgressBar({ className }: { className?: string }) {
 		return (
 			<div
 				className={cn(
-					'w-full text-sm text-muted-foreground font-light text-center',
+					'w-full text-sm text-muted-foreground font-light text-center bottom-1.5',
 					className
 				)}
 			>

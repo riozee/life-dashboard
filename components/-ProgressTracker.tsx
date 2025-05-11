@@ -8,13 +8,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { GripVertical, Trash } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { fetchTasks, addTask, updateTask, deleteTask, updateTaskOrders } from '@/lib/task-actions';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useDataFetching, useMutation } from '@/hooks/use-data-fetching';
 
-type Task = {
+export type Task = {
 	id: string;
 	title: string;
 	progress: number;
 	description: string;
 	startDate: Date;
+	order: number;
 };
 
 interface TaskItemProps {
@@ -146,81 +150,136 @@ const TaskItem: React.FC<TaskItemProps> = ({
 	);
 };
 
-export function ProgressTracker() {
-	const [tasks, setTasks] = useState<Task[]>([
-		{
-			id: '1',
-			title: 'Complete project proposal',
-			progress: 75,
-			description: 'First draft completed, need to review and finalize.',
-			startDate: new Date(),
-		},
-		{
-			id: '2',
-			title: 'Learn TypeScript',
-			progress: 45,
-			description: 'Completed basic syntax, working on advanced types.',
-			startDate: new Date(),
-		},
-		{
-			id: '3',
-			title: 'Gym fitness goal',
-			progress: 30,
-			description: 'Currently at 65kg, target is 70kg.',
-			startDate: new Date(),
-		},
-		{
-			id: '4',
-			title: 'Reading "Atomic Habits"',
-			progress: 60,
-			description: 'Currently on chapter 7 of 12.',
-			startDate: new Date(),
-		},
-	]);
+// Loading skeleton component
+const TasksSkeleton = () => {
+	return (
+		<div className="space-y-2">
+			{[1, 2, 3].map(i => (
+				<div key={i} className="rounded-md border mb-2 p-2 animate-pulse">
+					<div className="flex items-center gap-2">
+						<div className="w-4 h-4 bg-gray-200 rounded"></div>
+						<Skeleton className="h-5 w-full" />
+					</div>
+					<div className="mt-2">
+						<Skeleton className="h-4 w-full" />
+						<div className="mt-2">
+							<Skeleton className="h-16 w-full" />
+						</div>
+						<div className="mt-2">
+							<Skeleton className="h-3 w-24" />
+						</div>
+					</div>
+				</div>
+			))}
+		</div>
+	);
+};
 
+export function ProgressTracker() {
 	const [newTaskTitle, setNewTaskTitle] = useState('');
 
+	// Use our standardized data fetching hook
+	const {
+		data: tasksDataRaw,
+		loading: l1,
+		refetch: refetchTasks,
+	} = useDataFetching<Task[]>(fetchTasks, 'Failed to load tasks');
+
+	// Convert string dates to Date objects, similar to Notes.tsx
+	const tasksData = tasksDataRaw
+		? tasksDataRaw.map(task => ({
+				...task,
+				startDate: new Date(
+					task.startDate instanceof Date ? task.startDate : task.startDate
+				),
+		  }))
+		: [];
+
+	// Use standardized mutation hooks for CRUD operations
+	const { mutate: addTaskMutation, loading: l2 } = useMutation(addTask, {
+		onSuccess: () => {
+			refetchTasks();
+			setNewTaskTitle('');
+		},
+		errorMessage: 'Failed to add task',
+	});
+
+	const { mutate: updateTaskMutation, loading: l3 } = useMutation(
+		(params: { id: string; progress?: number; description?: string }) => updateTask(params.id, {
+			progress: params.progress,
+			description: params.description,
+		}),
+		{
+			onSuccess: () => refetchTasks(),
+			errorMessage: 'Failed to update task',
+		}
+	);
+
+	const { mutate: deleteTaskMutation, loading: l4 } = useMutation(
+		(id: string) => deleteTask(id),
+		{
+			onSuccess: () => refetchTasks(),
+			errorMessage: 'Failed to delete task',
+		}
+	);
+
+	const { mutate: updateTaskOrdersMutation, loading: l5 } = useMutation(
+		(taskOrders: Array<{ id: string; order: number }>) => updateTaskOrders(taskOrders),
+		{
+			onSuccess: () => refetchTasks(),
+			errorMessage: 'Failed to update task order',
+		}
+	);
+
 	const handleUpdateProgress = (id: string, progress: number) => {
-		setTasks(tasks.map(task => (task.id === id ? { ...task, progress } : task)));
+		updateTaskMutation({ id, progress });
 	};
 
 	const handleUpdateDescription = (id: string, description: string) => {
-		setTasks(tasks.map(task => (task.id === id ? { ...task, description } : task)));
+		updateTaskMutation({ id, description });
 	};
 
 	const handleDeleteTask = (id: string) => {
-		setTasks(tasks.filter(task => task.id !== id));
+		deleteTaskMutation(id);
 	};
 
 	const handleDragEnd = (result: DropResult) => {
 		const { destination, source } = result;
 
-		if (!destination) return;
-
-		if (destination.droppableId === source.droppableId && destination.index === source.index) {
+		if (
+			!destination ||
+			(destination.droppableId === source.droppableId && destination.index === source.index)
+		) {
 			return;
-		}
+			}
 
-		const newTasks = [...tasks];
-		const [removed] = newTasks.splice(source.index, 1);
-		newTasks.splice(destination.index, 0, removed);
+		// Create a new array of tasks in the new order
+		const reorderedTasks = [...tasksData];
+		const [removed] = reorderedTasks.splice(source.index, 1);
+		reorderedTasks.splice(destination.index, 0, removed);
 
-		setTasks(newTasks);
+		// Update order values for all tasks based on their new positions
+		const taskOrders = reorderedTasks.map((task, index) => ({
+			id: task.id,
+			order: index,
+		}));
+
+		// Update task orders in database
+		updateTaskOrdersMutation(taskOrders);
 	};
 
 	const handleAddTask = () => {
 		if (!newTaskTitle.trim()) return;
 
-		const newTask: Task = {
-			id: Date.now().toString(),
+		const newTaskData = {
 			title: newTaskTitle,
 			progress: 0,
 			description: '',
 			startDate: new Date(),
+			order: tasksData.length // Assign the next order number
 		};
 
-		setTasks([...tasks, newTask]);
-		setNewTaskTitle('');
+		addTaskMutation(newTaskData);
 	};
 
 	return (
@@ -229,25 +288,33 @@ export function ProgressTracker() {
 			<div className="flex-1 overflow-y-auto">
 				<ScrollArea className="h-full">
 					<div className="p-2">
-						<DragDropContext onDragEnd={handleDragEnd}>
-							<Droppable droppableId="tasks">
-								{provided => (
-									<div ref={provided.innerRef} {...provided.droppableProps}>
-										{tasks.map((task, index) => (
-											<TaskItem
-												key={task.id}
-												task={task}
-												index={index}
-												onUpdateProgress={handleUpdateProgress}
-												onUpdateDescription={handleUpdateDescription}
-												onDelete={handleDeleteTask}
-											/>
-										))}
-										{provided.placeholder}
-									</div>
-								)}
-							</Droppable>
-						</DragDropContext>
+						{[l1, l2, l3, l4, l5].some(Boolean) ? (
+							<TasksSkeleton />
+						) : (
+							<DragDropContext onDragEnd={handleDragEnd}>
+								<Droppable droppableId="tasks">
+									{provided => (
+										<div ref={provided.innerRef} {...provided.droppableProps}>
+											{[...tasksData]
+												.sort((a, b) => a.order - b.order)
+												.map((task, index) => (
+													<TaskItem
+														key={task.id}
+														task={task}
+														index={index}
+														onUpdateProgress={handleUpdateProgress}
+														onUpdateDescription={
+															handleUpdateDescription
+														}
+														onDelete={handleDeleteTask}
+													/>
+												))}
+											{provided.placeholder}
+										</div>
+									)}
+								</Droppable>
+							</DragDropContext>
+						)}
 					</div>
 				</ScrollArea>
 			</div>
@@ -263,6 +330,7 @@ export function ProgressTracker() {
 						onKeyDown={e => {
 							if (e.key === 'Enter') handleAddTask();
 						}}
+						disabled={[l1, l2, l3, l4, l5].some(Boolean)}
 					/>
 				</div>
 			</div>

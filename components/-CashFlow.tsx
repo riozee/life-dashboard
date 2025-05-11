@@ -6,25 +6,30 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Wallet } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useDataFetching, useMutation } from '@/hooks/use-data-fetching';
+import {
+	fetchTransactions,
+	addTransaction,
+	deleteTransaction,
+	type Transaction as TransactionType,
+} from '@/lib/transaction-actions';
+import {
+	fetchSubscriptions,
+	addSubscription,
+	updateSubscription,
+	deleteSubscription,
+	type Subscription as SubscriptionType,
+} from '@/lib/subscription-actions';
 
-type Transaction = {
-	id: string;
-	amount: number;
-	type: 'income' | 'expense';
-	description: string;
-	date: Date;
-};
-
-type Subscription = {
-	id: string;
-	amount: number;
-	name: string;
-	info: string;
-};
+// Use the types defined in the server action files
+type Transaction = TransactionType;
+type Subscription = SubscriptionType;
 
 type TransactionItemProps = {
 	transaction: Transaction;
 	onDelete: (id: string) => void;
+	isLoading: boolean;
 };
 
 type SubscriptionItemProps = {
@@ -37,6 +42,7 @@ type SubscriptionItemProps = {
 	onEdit: (id: string, field: 'amount' | 'name' | 'info', value: string) => void;
 	onSave: (id: string, field: 'amount' | 'name' | 'info', value: string) => void;
 	onDelete: (id: string) => void;
+	isLoading: boolean;
 };
 
 type SubscriptionTrackerProps = {
@@ -50,9 +56,10 @@ type SubscriptionTrackerProps = {
 	onSave: (id: string, field: 'amount' | 'name' | 'info', value: string) => void;
 	onDelete: (id: string) => void;
 	onAdd: () => void;
+	isLoading: boolean;
 };
 
-const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete }) => {
+const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete, isLoading }) => {
 	const isIncome = transaction.type === 'income';
 
 	return (
@@ -70,14 +77,14 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete
 					</p>
 					<div className="flex items-center gap-1 text-xs">
 						<span className="text-muted-foreground">
-							{transaction.date.toDateString() === new Date().toDateString()
-								? transaction.date.toLocaleTimeString(undefined, {
+							{new Date(transaction.date).toDateString() === new Date().toDateString()
+								? new Date(transaction.date).toLocaleTimeString(undefined, {
 										hour: '2-digit',
 										minute: '2-digit',
 								  })
-								: transaction.date.toLocaleString(undefined, {
+								: new Date(transaction.date).toLocaleString(undefined, {
 										year:
-											transaction.date.getFullYear() ===
+											new Date(transaction.date).getFullYear() ===
 											new Date().getFullYear()
 												? undefined
 												: 'numeric',
@@ -104,7 +111,8 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete
 					variant="ghost"
 					size="sm"
 					className="h-6 w-6 p-0"
-					onClick={() => onDelete(transaction.id)}
+					onClick={() => onDelete(transaction.id || '')}
+					disabled={isLoading}
 				>
 					<span className="sr-only">Delete</span>x
 				</Button>
@@ -119,81 +127,97 @@ const SubscriptionItem: React.FC<SubscriptionItemProps> = ({
 	onEdit,
 	onSave,
 	onDelete,
+	isLoading,
 }) => {
 	return (
 		<div className="group relative transition-colors hover:bg-muted/50 p-[0.01em]">
 			<div className="flex flex-col">
 				<div className="flex items-center gap-1">
-					{editingSubscription?.id === subscription.id &&
+					{editingSubscription?.id === subscription._id &&
 					editingSubscription?.field === 'amount' ? (
 						<Input
 							className="h-6 w-16 p-1"
 							value={editingSubscription.value}
 							autoFocus
-							onChange={e => onEdit(subscription.id, 'amount', e.target.value)}
+							onChange={e => onEdit(subscription._id || '', 'amount', e.target.value)}
 							onBlur={() =>
-								onSave(subscription.id, 'amount', editingSubscription.value)
+								onSave(subscription._id || '', 'amount', editingSubscription.value)
 							}
 							onKeyDown={e => {
 								if (e.key === 'Enter') {
 									e.currentTarget.blur();
 								}
 							}}
+							disabled={isLoading}
 						/>
 					) : (
 						<span
 							className="font-bold cursor-pointer text-yellow-500"
 							onClick={() =>
-								onEdit(subscription.id, 'amount', subscription.amount.toString())
+								!isLoading &&
+								onEdit(
+									subscription._id || '',
+									'amount',
+									subscription.amount.toString()
+								)
 							}
 						>
 							¥{subscription.amount}
 						</span>
 					)}
 					<span className="text-muted-foreground">•</span>
-					{editingSubscription?.id === subscription.id &&
+					{editingSubscription?.id === subscription._id &&
 					editingSubscription?.field === 'name' ? (
 						<Input
 							className="h-6 flex-1 p-1"
 							value={editingSubscription.value}
 							autoFocus
-							onChange={e => onEdit(subscription.id, 'name', e.target.value)}
+							onChange={e => onEdit(subscription._id || '', 'name', e.target.value)}
 							onBlur={() =>
-								onSave(subscription.id, 'name', editingSubscription.value)
+								onSave(subscription._id || '', 'name', editingSubscription.value)
 							}
 							onKeyDown={e => {
 								if (e.key === 'Enter') {
 									e.currentTarget.blur();
 								}
 							}}
+							disabled={isLoading}
 						/>
 					) : (
 						<span
 							className="cursor-pointer font-light"
-							onClick={() => onEdit(subscription.id, 'name', subscription.name)}
+							onClick={() =>
+								!isLoading &&
+								onEdit(subscription._id || '', 'name', subscription.name)
+							}
 						>
 							{subscription.name}
 						</span>
 					)}
 				</div>
-				{editingSubscription?.id === subscription.id &&
+				{editingSubscription?.id === subscription._id &&
 				editingSubscription?.field === 'info' ? (
 					<Input
 						className="h-6 text-xs p-1 mt-1"
 						value={editingSubscription.value}
 						autoFocus
-						onChange={e => onEdit(subscription.id, 'info', e.target.value)}
-						onBlur={() => onSave(subscription.id, 'info', editingSubscription.value)}
+						onChange={e => onEdit(subscription._id || '', 'info', e.target.value)}
+						onBlur={() =>
+							onSave(subscription._id || '', 'info', editingSubscription.value)
+						}
 						onKeyDown={e => {
 							if (e.key === 'Enter') {
 								e.currentTarget.blur();
 							}
 						}}
+						disabled={isLoading}
 					/>
 				) : (
 					<span
 						className="text-xs text-muted-foreground cursor-pointer"
-						onClick={() => onEdit(subscription.id, 'info', subscription.info)}
+						onClick={() =>
+							!isLoading && onEdit(subscription._id || '', 'info', subscription.info)
+						}
 					>
 						{subscription.info}
 					</span>
@@ -204,7 +228,8 @@ const SubscriptionItem: React.FC<SubscriptionItemProps> = ({
 					variant="ghost"
 					size="sm"
 					className="h-6 w-6 p-0"
-					onClick={() => onDelete(subscription.id)}
+					onClick={() => onDelete(subscription._id || '')}
+					disabled={isLoading}
 				>
 					<span className="sr-only">Delete</span>x
 				</Button>
@@ -220,6 +245,7 @@ const SubscriptionTracker: React.FC<SubscriptionTrackerProps> = ({
 	onSave,
 	onDelete,
 	onAdd,
+	isLoading,
 }) => {
 	return (
 		<ScrollArea className="p-2 max-h-[40%]">
@@ -228,15 +254,26 @@ const SubscriptionTracker: React.FC<SubscriptionTrackerProps> = ({
 					<span className="text-sm font-medium">
 						Subscriptions{' '}
 						<span className="text-yellow-500">
-							(¥{subscriptions.reduce((p, c) => p + c.amount, 0)})
+							(¥{subscriptions?.reduce((p, c) => p + c.amount, 0) || 0})
 						</span>
 					</span>
-					<Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onAdd}>
+					<Button
+						variant="ghost"
+						size="sm"
+						className="h-6 w-6 p-0"
+						onClick={onAdd}
+						disabled={isLoading}
+					>
 						<span className="sr-only">Add subscription</span>+
 					</Button>
 				</div>
 				<div className="flex-1 overflow-y-auto mt-1 text-sm">
-					{subscriptions.length === 0 ? (
+					{isLoading ? (
+						<div className="space-y-2">
+							<Skeleton className="h-6 w-full" />
+							<Skeleton className="h-6 w-full" />
+						</div>
+					) : subscriptions.length === 0 ? (
 						<div className="flex items-center justify-center text-muted-foreground">
 							No active subscriptions
 						</div>
@@ -244,12 +281,13 @@ const SubscriptionTracker: React.FC<SubscriptionTrackerProps> = ({
 						<div className="space-y-2">
 							{subscriptions.map(subscription => (
 								<SubscriptionItem
-									key={subscription.id}
+									key={subscription._id}
 									subscription={subscription}
 									editingSubscription={editingSubscription}
 									onEdit={onEdit}
 									onSave={onSave}
 									onDelete={onDelete}
+									isLoading={isLoading}
 								/>
 							))}
 						</div>
@@ -261,59 +299,7 @@ const SubscriptionTracker: React.FC<SubscriptionTrackerProps> = ({
 };
 
 export function CashFlow() {
-	const [transactions, setTransactions] = useState<Transaction[]>([
-		{
-			id: '1',
-			amount: 1500,
-			type: 'income',
-			description: 'Salary',
-			date: new Date('2023-05-01'),
-		},
-		{
-			id: '2',
-			amount: 120,
-			type: 'expense',
-			description: 'Groceries',
-			date: new Date('2023-05-02'),
-		},
-		{
-			id: '3',
-			amount: 85,
-			type: 'expense',
-			description: 'Electricity bill',
-			date: new Date('2023-05-03'),
-		},
-		{
-			id: '4',
-			amount: 65,
-			type: 'expense',
-			description: 'Internet bill',
-			date: new Date('2023-05-04'),
-		},
-		{
-			id: '5',
-			amount: 200,
-			type: 'income',
-			description: 'Freelance work',
-			date: new Date('2023-05-05'),
-		},
-	]);
-
-	const [subscriptions, setSubscriptions] = useState<Subscription[]>([
-		{
-			id: '1',
-			amount: 14.99,
-			name: 'Netflix',
-			info: 'Monthly • Due on 15th',
-		},
-		{
-			id: '2',
-			amount: 9.99,
-			name: 'Spotify',
-			info: 'Monthly • Due on 22nd',
-		},
-	]);
-
+	// State for editing
 	const [editingSubscription, setEditingSubscription] = useState<{
 		id: string;
 		field: 'amount' | 'name' | 'info';
@@ -325,24 +311,101 @@ export function CashFlow() {
 	const [errorMessage, setErrorMessage] = useState('');
 	const [isBalanceHidden, setIsBalanceHidden] = useState(true);
 
+	// Use standardized data fetching hook for transactions
+	const {
+		data: transactions,
+		loading: l1,
+		refetch: refetchTransactions,
+	} = useDataFetching<Transaction[]>(fetchTransactions, 'Failed to fetch transactions');
+
+	// Use standardized data fetching hook for subscriptions
+	const {
+		data: subscriptions,
+		loading: l2,
+		refetch: refetchSubscriptions,
+	} = useDataFetching<Subscription[]>(fetchSubscriptions, 'Failed to fetch subscriptions');
+
+	// Use standardized mutation hooks
+	const { mutate: addTransactionMutation, loading: l3 } = useMutation(addTransaction, {
+		onSuccess: () => {
+			refetchTransactions();
+			setInputValue('');
+		},
+		errorMessage: 'Failed to add transaction',
+	});
+
+	const { mutate: deleteTransactionMutation, loading: l4 } = useMutation(
+		(id: string) => deleteTransaction(id),
+		{
+			onSuccess: () => refetchTransactions(),
+			errorMessage: 'Failed to delete transaction',
+		}
+	);
+
+	const { mutate: addSubscriptionMutation, loading: l5 } = useMutation(addSubscription, {
+		onSuccess: result => {
+			if (result._id) {
+				refetchSubscriptions();
+				// Set the newly added subscription to edit mode
+				setEditingSubscription({
+					id: result._id,
+					field: 'name',
+					value: 'New Subscription',
+				});
+			}
+		},
+		errorMessage: 'Failed to add subscription',
+	});
+
+	const { mutate: updateSubscriptionMutation, loading: l6 } = useMutation(
+		(params: { id: string; update: Partial<Subscription> }) =>
+			updateSubscription(params.id, params.update),
+		{
+			onSuccess: () => {
+				refetchSubscriptions();
+				setEditingSubscription(null);
+			},
+			errorMessage: 'Failed to update subscription',
+		}
+	);
+
+	const { mutate: deleteSubscriptionMutation, loading: l7 } = useMutation(
+		(id: string) => deleteSubscription(id),
+		{
+			onSuccess: () => refetchSubscriptions(),
+			errorMessage: 'Failed to delete subscription',
+		}
+	);
+
 	// Calculate dashboard metrics
 	const calculateBalance = () => {
-		return transactions.reduce((acc, transaction) => {
-			return acc + (transaction.type === 'income' ? transaction.amount : -transaction.amount);
-		}, 0);
+		return (
+			transactions?.reduce((acc, transaction) => {
+				return (
+					acc + (transaction.type === 'income' ? transaction.amount : -transaction.amount)
+				);
+			}, 0) || 0
+		);
 	};
 
 	const calculateTodayExpense = () => {
+		if (!transactions) return 0;
 		const today = new Date();
 		return transactions
-			.filter(t => t.type === 'expense' && t.date.toDateString() === today.toDateString())
+			.filter(
+				t =>
+					t.type === 'expense' && new Date(t.date).toDateString() === today.toDateString()
+			)
 			.reduce((acc, transaction) => acc + transaction.amount, 0);
 	};
 
 	const calculateTodayIncome = () => {
+		if (!transactions) return 0;
 		const today = new Date();
 		return transactions
-			.filter(t => t.type === 'income' && t.date.toDateString() === today.toDateString())
+			.filter(
+				t => t.type === 'income' && new Date(t.date).toDateString() === today.toDateString()
+			)
 			.reduce((acc, transaction) => acc + transaction.amount, 0);
 	};
 
@@ -375,19 +438,16 @@ export function CashFlow() {
 
 	const handleAddTransaction = () => {
 		const parsed = parseInput(inputValue);
-
 		if (!parsed) return;
 
-		const newTransaction: Transaction = {
-			id: Date.now().toString(),
+		const newTransaction: Omit<Transaction, '_id' | 'id'> = {
 			amount: parsed.amount,
 			type: parsed.type,
 			description: parsed.description,
 			date: new Date(),
 		};
 
-		setTransactions([newTransaction, ...transactions]);
-		setInputValue('');
+		addTransactionMutation(newTransaction);
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -397,7 +457,8 @@ export function CashFlow() {
 	};
 
 	const handleDeleteTransaction = (id: string) => {
-		setTransactions(transactions.filter(t => t.id !== id));
+		if (!id) return;
+		deleteTransactionMutation(id);
 	};
 
 	const handleEditSubscription = (
@@ -413,35 +474,41 @@ export function CashFlow() {
 		field: 'amount' | 'name' | 'info',
 		value: string
 	) => {
+		if (!id) return;
+
+		let update: Partial<Subscription> = {};
+
 		if (field === 'amount') {
 			const amount = parseFloat(value);
-			if (!isNaN(amount)) {
-				setSubscriptions(subscriptions.map(s => (s.id === id ? { ...s, amount } : s)));
+			if (isNaN(amount)) {
+				console.error('Invalid amount');
+				return;
 			}
+			update = { amount };
 		} else {
-			setSubscriptions(subscriptions.map(s => (s.id === id ? { ...s, [field]: value } : s)));
+			update = { [field]: value };
 		}
-		setEditingSubscription(null);
+
+		updateSubscriptionMutation({ id, update });
 	};
 
 	const handleDeleteSubscription = (id: string) => {
-		setSubscriptions(subscriptions.filter(s => s.id !== id));
+		if (!id) return;
+		deleteSubscriptionMutation(id);
 	};
 
 	const handleAddSubscription = () => {
-		const newSubscription = {
-			id: Date.now().toString(),
+		const newSubscription: Omit<Subscription, '_id' | 'id'> = {
 			amount: 0,
 			name: 'New Subscription',
 			info: 'Monthly • Due date',
 		};
-		setSubscriptions([...subscriptions, newSubscription]);
-		setEditingSubscription({
-			id: newSubscription.id,
-			field: 'name',
-			value: newSubscription.name,
-		});
+
+		addSubscriptionMutation(newSubscription);
 	};
+
+	// Overall loading state
+	const isLoading = [l1, l2, l3, l4, l5, l6, l7].some(Boolean);
 
 	return (
 		<div className="flex flex-col h-full">
@@ -451,27 +518,35 @@ export function CashFlow() {
 					<h2 className="text-sm font-medium flex items-center gap-1">
 						<Wallet className="h-4 w-4" />
 					</h2>
-					<span
-						className={`text-lg font-bold ${
-							isBalanceHidden ? 'blur-sm' : ''
-						} cursor-pointer transition-all duration-200`}
-						onClick={() => setIsBalanceHidden(!isBalanceHidden)}
-						title={isBalanceHidden ? 'Show balance' : 'Hide balance'}
-					>
-						¥{calculateBalance().toFixed(2)}
-					</span>
+					{isLoading ? (
+						<Skeleton className="h-6 w-28" />
+					) : (
+						<span
+							className={`text-lg font-bold ${
+								isBalanceHidden ? 'blur-sm' : ''
+							} cursor-pointer transition-all duration-200`}
+							onClick={() => setIsBalanceHidden(!isBalanceHidden)}
+							title={isBalanceHidden ? 'Show balance' : 'Hide balance'}
+						>
+							¥{calculateBalance().toFixed(2)}
+						</span>
+					)}
 				</div>
 
 				<div className="flex items-center justify-between">
 					<span className="text-sm">Today</span>
-					<span className="text-sm">
-						<span className="text-red-500 dark:text-red-200">
-							-¥{calculateTodayExpense().toFixed(2)}
-						</span>{' '}
-						<span className="text-green-500 darK:text-green-200">
-							+¥{calculateTodayIncome().toFixed(2)}
+					{isLoading ? (
+						<Skeleton className="h-5 w-32" />
+					) : (
+						<span className="text-sm">
+							<span className="text-red-500 dark:text-red-200">
+								-¥{calculateTodayExpense().toFixed(2)}
+							</span>{' '}
+							<span className="text-green-500 darK:text-green-200">
+								+¥{calculateTodayIncome().toFixed(2)}
+							</span>
 						</span>
-					</span>
+					)}
 				</div>
 			</div>
 
@@ -479,12 +554,13 @@ export function CashFlow() {
 
 			{/* subscription tracker */}
 			<SubscriptionTracker
-				subscriptions={subscriptions}
+				subscriptions={subscriptions || []}
 				editingSubscription={editingSubscription}
 				onEdit={handleEditSubscription}
 				onSave={handleSaveSubscription}
 				onDelete={handleDeleteSubscription}
 				onAdd={handleAddSubscription}
+				isLoading={isLoading}
 			/>
 
 			<Separator />
@@ -493,7 +569,13 @@ export function CashFlow() {
 			<div className="flex-1 overflow-y-auto">
 				<ScrollArea className="h-full">
 					<div className="p-1">
-						{transactions.length === 0 ? (
+						{isLoading ? (
+							<div className="space-y-2 p-2">
+								<Skeleton className="h-10 w-full" />
+								<Skeleton className="h-10 w-full" />
+								<Skeleton className="h-10 w-full" />
+							</div>
+						) : !transactions || transactions.length === 0 ? (
 							<div className="flex items-center justify-center h-20 text-muted-foreground">
 								No transactions recorded
 							</div>
@@ -503,6 +585,7 @@ export function CashFlow() {
 									<TransactionItem
 										transaction={transaction}
 										onDelete={handleDeleteTransaction}
+										isLoading={isLoading}
 									/>
 									{index < transactions.length - 1 && <Separator />}
 								</React.Fragment>
@@ -521,7 +604,13 @@ export function CashFlow() {
 						value={inputValue}
 						onChange={e => setInputValue(e.target.value)}
 						onKeyDown={handleKeyDown}
+						disabled={isLoading}
 					/>
+					{errorMessage && (
+						<div className="absolute -top-6 left-0 text-xs text-red-500">
+							{errorMessage}
+						</div>
+					)}
 				</div>
 			</div>
 		</div>
