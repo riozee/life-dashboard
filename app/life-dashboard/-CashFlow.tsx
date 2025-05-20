@@ -7,20 +7,20 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Wallet } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useDataFetching, useMutation } from '@/hooks/use-data-fetching';
+import { useDataFetching, useMutation } from '@/app/life-dashboard/use-data-fetching';
 import {
 	fetchTransactions,
 	addTransaction,
 	deleteTransaction,
 	type Transaction as TransactionType,
-} from '@/lib/transaction-actions';
+} from '@/app/life-dashboard/lib/transaction-actions';
 import {
 	fetchSubscriptions,
 	addSubscription,
 	updateSubscription,
 	deleteSubscription,
 	type Subscription as SubscriptionType,
-} from '@/lib/subscription-actions';
+} from '@/app/life-dashboard/lib/subscription-actions';
 
 // Use the types defined in the server action files
 type Transaction = TransactionType;
@@ -580,16 +580,22 @@ export function CashFlow() {
 								No transactions recorded
 							</div>
 						) : (
-							transactions.map((transaction, index) => (
-								<React.Fragment key={transaction.id}>
-									<TransactionItem
-										transaction={transaction}
-										onDelete={handleDeleteTransaction}
-										isLoading={isLoading}
-									/>
-									{index < transactions.length - 1 && <Separator />}
-								</React.Fragment>
-							))
+							// Sort transactions by date (newest first) before rendering
+							[...transactions]
+								.sort(
+									(a, b) =>
+										new Date(b.date).getTime() - new Date(a.date).getTime()
+								)
+								.map((transaction, index, sortedArray) => (
+									<React.Fragment key={transaction.id}>
+										<TransactionItem
+											transaction={transaction}
+											onDelete={handleDeleteTransaction}
+											isLoading={isLoading}
+										/>
+										{index < sortedArray.length - 1 && <Separator />}
+									</React.Fragment>
+								))
 						)}
 					</div>
 				</ScrollArea>

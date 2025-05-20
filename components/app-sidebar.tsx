@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { House, Zap } from 'lucide-react';
+import { House, Settings, Zap } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -24,11 +24,19 @@ const data = {
 	},
 	navMain: [
 		{
-			title: 'Home',
-			url: '#',
+			name: 'Home',
+			url: '/',
 			icon: House,
-			isActive: true,
-			items: [],
+		},
+		{
+			name: 'life-dashboard',
+			url: '/life-dashboard',
+			icon: Zap,
+		},
+		{
+			name: 'life-assist',
+			url: '/life-assist',
+			icon: Settings,
 		},
 	],
 };

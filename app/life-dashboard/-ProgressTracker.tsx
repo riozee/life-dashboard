@@ -8,9 +8,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { GripVertical, Trash } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { fetchTasks, addTask, updateTask, deleteTask, updateTaskOrders } from '@/lib/task-actions';
+import {
+	fetchTasks,
+	addTask,
+	updateTask,
+	deleteTask,
+	updateTaskOrders,
+} from '@/app/life-dashboard/lib/task-actions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useDataFetching, useMutation } from '@/hooks/use-data-fetching';
+import { useDataFetching, useMutation } from '@/app/life-dashboard/use-data-fetching';
 
 export type Task = {
 	id: string;
@@ -205,10 +211,11 @@ export function ProgressTracker() {
 	});
 
 	const { mutate: updateTaskMutation, loading: l3 } = useMutation(
-		(params: { id: string; progress?: number; description?: string }) => updateTask(params.id, {
-			progress: params.progress,
-			description: params.description,
-		}),
+		(params: { id: string; progress?: number; description?: string }) =>
+			updateTask(params.id, {
+				progress: params.progress,
+				description: params.description,
+			}),
 		{
 			onSuccess: () => refetchTasks(),
 			errorMessage: 'Failed to update task',
@@ -251,7 +258,7 @@ export function ProgressTracker() {
 			(destination.droppableId === source.droppableId && destination.index === source.index)
 		) {
 			return;
-			}
+		}
 
 		// Create a new array of tasks in the new order
 		const reorderedTasks = [...tasksData];
@@ -276,7 +283,7 @@ export function ProgressTracker() {
 			progress: 0,
 			description: '',
 			startDate: new Date(),
-			order: tasksData.length // Assign the next order number
+			order: tasksData.length, // Assign the next order number
 		};
 
 		addTaskMutation(newTaskData);

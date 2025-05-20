@@ -12,9 +12,9 @@ import {
 	toggleNoteRead as toggleRead,
 	setNotePriority as setPriority,
 	deleteNote as removeNote,
-} from '@/lib/note-actions';
+} from '@/app/life-dashboard/lib/note-actions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useDataFetching, useMutation } from '@/hooks/use-data-fetching';
+import { useDataFetching, useMutation } from '@/app/life-dashboard/use-data-fetching';
 
 interface NoteItemProps {
 	note: string;

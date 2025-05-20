@@ -6,8 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Calendar, Loader2 } from 'lucide-react';
-import { fetchEvents, addEvent as addEventToDb, removeEvent } from '@/lib/event-actions';
-import { useDataFetching, useMutation } from '@/hooks/use-data-fetching';
+import {
+	fetchEvents,
+	addEvent as addEventToDb,
+	removeEvent,
+} from '@/app/life-dashboard/lib/event-actions';
+import { useDataFetching, useMutation } from '@/app/life-dashboard/use-data-fetching';
 
 interface Event {
 	_id: string;
@@ -149,8 +153,15 @@ export function EventCalendar() {
 	// Group events by day
 	const groupEventsByDay = () => {
 		const grouped: { [key: string]: Event[] } = {};
+		const today = new Date();
+		today.setHours(0, 0, 0, 0); // Set to start of day for comparison
 
 		eventsData
+			.filter(event => {
+				const eventDate = new Date(event.date);
+				eventDate.setHours(0, 0, 0, 0); // Set to start of day for comparison
+				return eventDate.getTime() >= today.getTime(); // Only keep today and future events
+			})
 			.sort((a, b) => a.date.getTime() - b.date.getTime())
 			.forEach(event => {
 				const dateStr = event.date.toDateString();
@@ -231,7 +242,9 @@ export function EventCalendar() {
 							<Loader2 className="h-3 w-3 animate-spin ml-1" />
 						)}
 					</h2>
-					<span className="text-sm font-medium">{eventsData.length}</span>
+					<span className="text-sm font-medium">
+						{groupedEvents.reduce((total, [, events]) => total + events.length, 0)}
+					</span>
 				</div>
 			</div>
 
